@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  app:
+    image: notification-microservice:v1.0.0
+    build: 
+      context: .
+    volumes: 
+      - .:/notification_microservice
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    container_name: notification-microservice
+
