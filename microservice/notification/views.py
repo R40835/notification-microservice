@@ -3,7 +3,6 @@ from adrf.requests import Request
 
 from rest_framework.response import Response
 from rest_framework import status
-from django.utils import timezone
 
 from .models import AppNotification
 from .serializers import AppNotificationSerializer
@@ -13,11 +12,11 @@ from channels.layers import get_channel_layer
 
 
 @api_view(['POST'])
-async def send_notification(request: Request) -> Response:
+async def send_blog_notification(request: Request) -> Response:
     """
-    Api view to send real-time notifications to clients. This is achieved by sending 
-        a message through websockets to the user's designated channel. Additionally, a notification 
-        entry is created in the database, so that the user can track notifications within the app.
+    Api view to send real-time blog notifications to clients. This is achieved by sending 
+        a message through websockets to the user's designated channel. It's the consumer 
+        that sends the messages. It, also creates a notifcation entry in the database.
 
     Parameters:
         request (Request): User request handled by the framework.
@@ -26,37 +25,25 @@ async def send_notification(request: Request) -> Response:
     """
     if request.method == 'POST':
         data = request.data
-        # validating client data
         validated_data = await async_serializer(AppNotificationSerializer, data)
         if not isinstance(validated_data, dict):
             return Response(data=validated_data.errors, status=status.HTTP_400_BAD_REQUEST)
-        blog        = validated_data['blog']
-        sender      = validated_data['sender']
-        receiver    = validated_data['receiver']
-        text        = validated_data['text']
-        notif_type  = validated_data['type']
-        # saving entry in the database
-        await AppNotification.objects.acreate(
-            blog=blog,
-            sender=sender,
-            receiver=receiver,
-            text=text,
-            type=notif_type,
-            timestamp=timezone.now()
-        )
-        # sending message to the channel
+
+        blog = validated_data.pop('blog')
+        sender = validated_data.pop('sender')
+        receiver = validated_data.pop('receiver')
+
+        validated_data['blog_id'] = blog.pk
+        validated_data['sender_id'] = sender.pk
+        validated_data['receiver_id'] = receiver.pk
+        validated_data['sender_name'] = f'{sender.first_name} {sender.last_name}'
+
         channel_layer = get_channel_layer()
         await channel_layer.group_send(
             f'notification_channel_{receiver.pk}',
             {
                 'type': 'ws.message',
-                'message': {
-                    'blog': blog.pk,
-                    'sender': sender.pk,
-                    'receiver': receiver.pk,
-                    'text': text,
-                    'type': notif_type
-                }
+                'validated_data': validated_data
             }
         )
         return Response(data=ApiResponse.NOTIF_POST_SUCCESS, status=status.HTTP_201_CREATED)
@@ -66,8 +53,8 @@ async def send_notification(request: Request) -> Response:
 @api_view(['GET'])
 async def user_notifications(request: Request) -> Response:
     """
-    API view to retrieve a the authenticated user's notifications. 
-        Pagination with 10 items per page has been implemented.
+    API view to retrieve the authenticated user's notifications. 
+        A pagination with 10 items per page has been implemented.
 
     Parameters:
         request: User request handled by the framework.

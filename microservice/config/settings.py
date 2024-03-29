@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'adrf',
     'daphne',
     'channels',
+    'corsheaders',
     'rest_framework',
     # base apps
     'django.contrib.admin',

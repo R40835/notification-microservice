@@ -1,6 +1,9 @@
 import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.utils import timezone
+
+from .models import AppNotification
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -35,21 +38,57 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
-        await self.close(code=close_code)
-
     async def ws_message(self, event: dict) -> None:
         """
-        Sends a message to the notified user's channel.
+        Sends a message to the notified user's channel. It receives the validated data
+            to create a new notification instance and eventually send the notification
+            message to the client.
         
         Parameters:
-            event (dict): Websocket event containing the message to send. 
+            event (dict): Websocket event containing the a validated data dictionary. 
         """
-        message = event["message"]
+        validated_data = event["validated_data"]
+
+        validated_data['timestamp'] = timezone.now()
+        validated_data['text'] = await self.generate_message(
+            sender_name=validated_data['sender_name'],
+            notification_type=validated_data['type']
+        )
+        
+        validated_data.pop('sender_name')
+
+        await AppNotification.objects.acreate(**validated_data)
 
         await self.send(
             text_data=json.dumps(
                 {
-                    "message": message
+                    "blog_id": validated_data['blog_id'],
+                    "message": validated_data['text'],
+                    "type": validated_data["type"]
                 }
             )
         )
+
+    @staticmethod
+    async def generate_message(sender_name: str, notification_type: str) -> str:
+        """
+        Utility method to generate notification messages based on the notification type. 
+
+        Parameters:
+            sender_name (str): The full name of the user sending the notification.
+            notification_type (str): The type of notification sent.
+        Returns:
+            str: The notification message sent to the frontend.
+        """
+        notification_type = notification_type.lower()
+
+        if notification_type == 'like':
+            return f'{sender_name} liked your blog.'
+        elif notification_type == 'comment':
+            return f'{sender_name} commented on your blog.'
+        elif notification_type == 'blog-approval':
+            return f'{sender_name} approved your blog.'
+        elif notification_type == 'blog-rejection':
+            return f'{sender_name} rejected your blog.'
+        elif notification_type == 'feedback':
+            return f'{sender_name} has given you blog feedback.'

@@ -22,7 +22,7 @@ class AsyncPaginator:
     
     def __init__(self, items_per_page: int):
         """
-        The constructor instantiates a oaginator and sets the number of items per page.
+        The constructor instantiates a paginator and sets the number of items per page.
 
         Parameters:
             items_per_page (int): number of items (instances) per page. 
