@@ -146,4 +146,4 @@ class AppNotification(models.Model):
 
     class Meta:
         db_table = 'app_notification'
-        ordering = ['-date_created']
+        ordering = ['-timestamp']
