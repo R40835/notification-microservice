@@ -38,16 +38,16 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
-    async def ws_message(self, event: dict) -> None:
+    async def send_notification(self, event: dict) -> None:
         """
         Sends a message to the notified user's channel. It receives the validated data
-            to create a new notification instance and eventually send the notification
-            message to the client.
+            to create a new notification instance, and sends the notification message 
+            to the clients through their associated WebSockets.
         
         Parameters:
-            event (dict): Websocket event containing the a validated data dictionary. 
+            event (dict): Websocket event containing the validated data dictionary. 
         """
-        validated_data = event["validated_data"]
+        validated_data: dict = event["validated_data"]
 
         validated_data['timestamp'] = timezone.now()
         validated_data['text'] = await self.generate_message(
@@ -92,3 +92,56 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             return f'{sender_name} rejected your blog.'
         elif notification_type == 'feedback':
             return f'{sender_name} has given you blog feedback.'
+        
+
+class EventConsumer(AsyncWebsocketConsumer):
+    async def connect(self) -> None:
+        """
+        Connects the client to the websocket.
+        """
+        self.room_group_name = "event_channel"
+        self.connection_denied_code = 4000
+
+        if self.scope['user_auth']:
+
+            await self.channel_layer.group_add(
+                self.room_group_name, 
+                self.channel_name
+            )
+
+            await self.accept()
+        else:
+            await self.close(code=self.connection_denied_code)
+
+    async def disconnect(self, close_code: int) -> None:
+        """
+        Disconnects the client from the websocket.
+
+        Parameters:
+            close_code (int): Websocket connection close code.
+        """
+        await self.channel_layer.group_discard(
+            self.room_group_name, 
+            self.channel_name
+        )
+
+    async def send_event(self, event: dict) -> None:
+        """
+        Sends a message to the notified user's channel. The method customises
+            this message by adding the first name of the user associated with 
+            the current WebSocket connection before sending it to the client.
+        
+        Parameters:
+            event (dict): Websocket event containing the message. 
+        """
+        message: str = event["message"]
+        
+        event_message = "Hey " + self.scope['user_first_name'] + ". " + message.capitalize()
+
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "message": event_message,
+                }
+            )
+        )

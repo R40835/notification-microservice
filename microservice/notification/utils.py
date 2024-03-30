@@ -10,7 +10,8 @@ class ApiResponse:
     """    
     Utility class providing predefined responses for API endpoints.
     """
-    NOTIF_POST_SUCCESS  = {"Response": "User notified successfully."}
+    NOTIF_POST_SUCCESS  = {"Response": "Blog notification sent successfully."}
+    EVENT_POST_SUCCESS  = {"Response": "Event notification sent successfully."}
     NOT_FOUND           = {"Response": "Item requested not found."}
     KEY_ERROR           = staticmethod(lambda e: {"Error": f"Missing key: {e}"})
 

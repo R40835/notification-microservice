@@ -42,7 +42,7 @@ async def send_blog_notification(request: Request) -> Response:
         await channel_layer.group_send(
             f'notification_channel_{receiver.pk}',
             {
-                'type': 'ws.message',
+                'type': 'send.notification',
                 'validated_data': validated_data
             }
         )
@@ -50,11 +50,43 @@ async def send_blog_notification(request: Request) -> Response:
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
+@api_view(['POST'])
+async def send_event_notification(request: Request) -> Response:
+    """
+    Api view to send real-time event notifications to clients. This is achieved by sending 
+        a message through websockets to the event notification channel. The messages are
+        sent from the consumer. No data is stored in the database, as the events notified
+        to the users, are displayed prominently.
+
+    Parameters:
+        request (Request): User request handled by the framework.
+    Returns:
+        Response: A JSON object indicating the status of the operation.
+    """
+    if request.method == 'POST':
+        try:
+            data = request.data
+            message = data['message']
+        except KeyError as e:
+            return Response(data=ApiResponse.KEY_ERROR(e), status=status.HTTP_400_BAD_REQUEST)
+
+        channel_layer = get_channel_layer()
+        await channel_layer.group_send(
+            f'event_channel',
+            {
+                'type': 'send.event',
+                'message': message
+            }
+        )
+        return Response(data=ApiResponse.EVENT_POST_SUCCESS, status=status.HTTP_201_CREATED)
+    return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 @api_view(['GET'])
 async def user_notifications(request: Request) -> Response:
     """
-    API view to retrieve the authenticated user's notifications. 
-        A pagination with 10 items per page has been implemented.
+    API view to retrieve the authenticated user's blog notifications. A pagination with 
+        10 items per page has been implemented, and the ordering is by the latest.
 
     Parameters:
         request: User request handled by the framework.
