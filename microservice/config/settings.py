@@ -78,10 +78,7 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             "hosts": [
-                (
-                    env('REDIS_HOST'), 
-                    env('REDIS_PORT')
-                )
+                (env('REDIS_HOST'), env('REDIS_PORT'))
             ],
         },
     },
@@ -89,6 +86,9 @@ CHANNEL_LAYERS = {
 
 # Authentication service
 USER_AUTH_API = env('USER_AUTH_API')
+
+# Origin allowed connection to server's websockets
+FRONTEND_ORIGIN = env("FRONTEND_ORIGIN")
 
 # Database
 DATABASES = {
